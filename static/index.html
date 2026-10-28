@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shabd Yuddh</title><link rel="stylesheet" href="/static/style.css">
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+<script src="/static/common.js"></script></head><body><main>
+<h1>Shabd Yuddh</h1>
+<div class="card"><p class="muted">word duel. 7 letters a round, make the best word before the clock ends. 5 rounds, most points wins.</p></div>
+<div class="card" id="loginBox">
+  <button id="login">Login with Pi</button>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+async function go(){
+  if (session()) { location.href = "/match"; }
+}
+$("login").onclick = async () => {
+  $("login").disabled = true;
+  try { await piLogin(); location.href = "/match"; }
+  catch(e){ setMsg("msg", e.message, "bad"); $("login").disabled = false; }
+};
+go();
+</script></main></body></html>

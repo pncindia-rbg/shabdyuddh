@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leaderboard</title><link rel="stylesheet" href="/static/style.css">
+<script src="/static/common.js"></script></head><body><main>
+<script>document.write(nav("leaderboard"));</script>
+<h1>leaderboard</h1>
+<div class="card" id="board"><span class="muted">loading...</span></div>
+<script>
+(async () => {
+  try {
+    const r = await api("/api/leaderboard");
+    if (!r.rows.length) { $("board").innerHTML = '<span class="muted">no matches yet</span>'; return; }
+    $("board").innerHTML = r.rows.map((x,i) =>
+      `<div class="row"><span>${i+1}. ${x.name}</span><span>${x.wins}W / ${x.matches}  ·  ${x.points} pts</span></div>`).join("");
+  } catch(e){ setMsg("board", e.message, "bad"); $("board").innerHTML = '<span class="bad">could not load</span>'; }
+})();
+</script></main></body></html>

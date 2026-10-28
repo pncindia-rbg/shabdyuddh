@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Duel</title><link rel="stylesheet" href="/static/style.css">
+<script src="/static/common.js"></script></head><body><main>
+<script>document.write(nav("match"));</script>
+<h1 id="title">duel</h1>
+<div class="card">
+  <div class="row"><span id="meName">you</span><b id="meTotal">0</b></div>
+  <div class="row"><span id="oppName">opponent</span><b id="oppTotal">0</b></div>
+  <div class="muted" id="roundLabel"></div>
+</div>
+<div class="card" id="roundBox">
+  <div class="timer" id="timer">--</div>
+  <div class="letters" id="letters"></div>
+  <input id="word" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="40" placeholder="type a word">
+  <button id="submit">submit word</button>
+  <div class="msg" id="msg"></div>
+</div>
+<div class="card" id="resultBox" style="display:none"></div>
+<div class="card" id="histBox"></div>
+<script>
+let state = null;
+let tick = null;
+let secs = null;
+
+function render(view){
+  $("title").textContent = view.finished ? "match over" : "duel";
+  $("meName").textContent = view.me.name;
+  $("oppName").textContent = view.opponent.name;
+  $("meTotal").textContent = view.me.total;
+  $("oppTotal").textContent = view.opponent.total;
+  $("roundLabel").textContent = view.finished ? "" : `round ${view.round} of ${view.rounds}`;
+
+  const hist = (view.history||[]).map(h => `<div class="row"><span>round ${h.n}</span><span>${h.mine||"-"} (+${h.my_pts}) / ${h.theirs||"-"} (+${h.their_pts})</span></div>`).join("");
+  $("histBox").innerHTML = `<h2>rounds</h2>${hist||'<span class="muted">none yet</span>'}`;
+
+  if (view.finished) {
+    const txt = {win:"you won", lose:"you lost", draw:"draw", void:"no words left in list"}[view.result] || "";
+    $("roundBox").style.display = "none";
+    $("resultBox").style.display = "block";
+    $("resultBox").innerHTML = `<h2>${txt}</h2><p>${view.me.total} vs ${view.opponent.total}</p>
+      <a class="btn" href="/match">play again</a><a class="btn alt" href="/leaderboard">leaderboard</a>`;
+    clearInterval(tick);
+    return;
+  }
+  if (view.active) {
+    $("roundBox").style.display = "block";
+    $("resultBox").style.display = "none";
+    $("letters").innerHTML = view.letters.map(l => `<div class="tile">${l}</div>`).join("");
+    $("timer").textContent = view.seconds_left + "s";
+    $("submit").disabled = false;
+    $("word").disabled = false;
+  } else {
+    $("letters").innerHTML = "";
+    $("timer").textContent = view.next_round_in != null ? "next round in " + view.next_round_in + "s" : "";
+    $("submit").disabled = true;
+    $("word").disabled = true;
+  }
+}
+
+async function load(){
+  if (!requireLogin()) return;
+  try {
+    state = await api("/api/state");
+  } catch(e){ location.href = "/"; return; }
+  if (!state.match) { location.href = "/match"; return; }
+  render(state.match);
+  clearInterval(tick);
+  tick = setInterval(refresh, 1000);
+}
+
+async function refresh(){
+  try {
+    const s = await api("/api/state");
+    if (!s.match) { clearInterval(tick); location.href = "/match"; return; }
+    render(s.match);
+
+  } catch(e){}
+}
+
+async function send(){
+  const w = $("word").value.trim();
+  if (!w) return;
+  $("submit").disabled = true;
+  try {
+    const r = await api("/api/word", {method:"POST", body:{word: w}});
+    if (r.ok) setMsg("msg", `${r.word} (+${r.points})${r.best?"":" not better than your best"}`, r.best?"ok":"");
+    else setMsg("msg", ({short:"too short", not_in_list:"not a word in the list", letters:"uses letters not shown", round_closed:"round closed"})[r.reason] || r.reason, "bad");
+    if (r.match) render(r.match);
+    $("word").value = "";
+  } catch(e){ setMsg("msg", e.message, "bad"); }
+  finally { $("submit").disabled = false; }
+}
+$("submit").onclick = send;
+$("word").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+load();
+</script></main></body></html>

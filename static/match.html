@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Find opponent</title><link rel="stylesheet" href="/static/style.css">
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
+<script src="/static/common.js"></script></head><body><main>
+<script>document.write(nav("match"));</script>
+<h1>find an opponent</h1>
+<div class="card">
+  <h2>language</h2>
+  <div id="langs"></div>
+  <p class="muted">entry is 0.5 Pi per match. the referral chain gets a cut (5 / 3 / 2 percent).</p>
+  <button id="go">find opponent</button>
+  <button id="leave" class="alt" style="display:none">leave queue</button>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+let lang = "en";
+let polling = null;
+function drawLangs(list){
+  $("langs").innerHTML = list.map(l => `<button class="${l===lang?'':'alt'}" onclick="pickLang('${l}')">${LANG_NAMES[l]||l}</button>`).join("");
+}
+function pickLang(l){ lang = l; api("/api/config").then(c => drawLangs(c.langs)); }
+
+async function start(){
+  if (!requireLogin()) return;
+  const cfg = await api("/api/config");
+  drawLangs(cfg.langs);
+  const st = await api("/api/state").catch(()=>null);
+  if (st && st.status === "playing") { location.href = "/duel"; return; }
+  if (st && st.status === "queued") { $("leave").style.display="block"; poll(); }
+}
+async function poll(){
+  polling = setInterval(async () => {
+    try { const st = await api("/api/state"); if (st.status==="playing") location.href="/duel"; }
+    catch(e){ clearInterval(polling); }
+  }, 2000);
+}
+$("go").onclick = async () => {
+  $("go").disabled = true;
+  try {
+    const cfg = await api("/api/config");
+    let paymentId = null;
+    if (cfg.payments_enabled) {
+      setMsg("msg", "waiting for pi payment...");
+      paymentId = await payEntry();
+    }
+    const r = await api("/api/play", {method:"POST", body:{lang, payment_id: paymentId}});
+    if (r.status === "playing") { location.href = "/duel"; return; }
+    setMsg("msg", "in queue, waiting for an opponent...", "ok");
+    $("leave").style.display = "block";
+    poll();
+  } catch(e){
+    setMsg("msg", e.message, "bad");
+    $("go").disabled = false;
+  }
+};
+$("leave").onclick = async () => {
+  await api("/api/leave", {method:"POST"}).catch(()=>{});
+  clearInterval(polling);
+  $("leave").style.display = "none";
+  setMsg("msg", "left the queue");
+  $("go").disabled = false;
+};
+start();
+</script></main></body></html>

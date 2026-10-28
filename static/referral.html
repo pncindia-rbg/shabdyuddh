@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Refer</title><link rel="stylesheet" href="/static/style.css">
+<script src="/static/common.js"></script></head><body><main>
+<script>document.write(nav("referral"));</script>
+<h1>refer and earn</h1>
+<div class="card">
+  <p class="muted">share your link. when someone you invite pays an entry, you earn a share of their fee. the earnings below are pending until payments are live.</p>
+  <p>your link</p>
+  <code id="link">loading...</code>
+  <button id="copy" class="alt">copy link</button>
+  <div class="msg" id="msg"></div>
+</div>
+<div class="card" id="earn"></div>
+<script>
+(async () => {
+  if (!requireLogin()) return;
+  try {
+    const r = await api("/api/referral");
+    const link = location.origin + "/?ref=" + r.ref_param;
+    $("link").textContent = link;
+    $("copy").onclick = async () => { try { await navigator.clipboard.writeText(link); setMsg("msg","copied","ok"); } catch(e){ setMsg("msg","copy manually","bad"); } };
+    $("earn").innerHTML = `<h2>network</h2>` + r.levels.map(l =>
+      `<div class="row"><span>level ${l.level} (${l.share})</span><span>${l.people} people · ${l.pending_pi} Pi pending</span></div>`).join("")
+      + `<div class="row"><b>total pending</b><b>${r.total_pending_pi} Pi</b></div>`;
+  } catch(e){ $("earn").innerHTML = '<span class="bad">could not load</span>'; }
+})();
+</script></main></body></html>
